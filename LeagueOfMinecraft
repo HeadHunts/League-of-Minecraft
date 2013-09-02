@@ -1,0 +1,123 @@
+package me.HeadHunts.LeagueOfMinecraft;
+
+import java.util.ArrayList;
+
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public class LeagueOfMinecraft extends JavaPlugin implements Listener{
+	
+	World world;
+	Integer acceptTicks = Integer.valueOf(0);
+	public static ArrayList<Player> p_inQueue = new ArrayList<Player>();
+	public static ArrayList<Player> p_Accept = new ArrayList<Player>();
+	Integer p_Accepted = Integer.valueOf(0);
+	Location matchLobby;
+	
+	@SuppressWarnings("deprecation")
+	public void onEnable(){
+		matchLobby = new Location(world, 100, 100, 100);
+		System.out.println("[LoM] Attivazione plugin..");
+		getServer().getPluginManager().registerEvents(this, this);
+		getServer().getScheduler().scheduleAsyncRepeatingTask(this, new Runnable() {
+			public void run() {
+				if (LeagueOfMinecraft.this.acceptTicks > 0){
+					LeagueOfMinecraft tmp277_274 = LeagueOfMinecraft.this; tmp277_274.acceptTicks = Integer.valueOf(tmp277_274.acceptTicks.intValue() - 1);
+				}
+				else{
+					if (p_Accepted.intValue() == 10){
+						for (Player pl : p_Accept){
+							pl.teleport(matchLobby);
+							p_Accept.clear();
+						}
+						p_Accepted = 0;
+					}
+				}
+		    }
+		}, 0L, 20L);
+	}
+	public void onDisable(){
+		System.out.println("[LoM] Disattivazione plugin..");
+		System.out.println("[LoM] Pulisco l'array dei player in queue..");
+		p_inQueue.clear();
+	}
+	
+	public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args) {
+		if (sender instanceof Player){
+			Player p = (Player)sender;
+			if (commandLabel.equalsIgnoreCase("queue")){
+				if (args[0].equalsIgnoreCase("join")){
+					if (args.length == 1){
+						if (!p_inQueue.contains(p)){
+							p_inQueue.add(p);
+							p.sendMessage(ChatColor.GREEN + "Sei stato inserito nella queue...");
+							if (p_inQueue.size() == 10){
+								acceptTicks = 20;
+								p.sendMessage(ChatColor.GREEN + "La match è stata trovata... Accetti?");
+								p.sendMessage(ChatColor.YELLOW + "Per accettare scrivi 'Si' altrimenti 'No'");
+								for (Player pl : p_inQueue){
+									p_Accept.add(pl);
+									p_inQueue.clear();
+								}
+							}
+						}
+						else{
+							p.sendMessage(ChatColor.RED + "Sei già in queue...");
+						}
+					}
+					else if (args.length == 2){
+						
+					}
+				}
+				else if (args[0].equalsIgnoreCase("leave")){
+					if (p_inQueue.contains(p)){
+						p_inQueue.remove(p);
+						p.sendMessage(ChatColor.GREEN + "Sei uscito dalla queue...");
+					}
+					else{
+						p.sendMessage(ChatColor.RED + "Non sei in queue...");
+					}
+				}
+			}
+		}
+		return false;
+	}
+		
+	@EventHandler
+	public void acceptChat(AsyncPlayerChatEvent e){
+		Player p = e.getPlayer();
+		String m = e.getMessage();
+		if (acceptTicks > 0){
+			if (p_Accept.size() == 10){
+				if (p_Accept.contains(p)){
+					if (m.equals("Si")){
+						p_Accepted++;
+						p.sendMessage(ChatColor.GREEN + "Hai accettato la match...");
+						p.sendMessage(ChatColor.AQUA + "Player rimanenti : " + p_Accepted.intValue() + "/10");
+						p.sendMessage(ChatColor.AQUA + "Tempo rimanente : " + acceptTicks.intValue() + "/20");
+					}
+					else if (m.equals("No")){
+						p.sendMessage(ChatColor.GREEN + "Hai rifiutato la match...");
+						p_Accept.remove(p);
+						for (Player pl : p_Accept){
+							pl.sendMessage(ChatColor.RED + "Qualcuno ha rifiutato la match...");
+							pl.sendMessage(ChatColor.RED + "Automaticamente verrai rinserito nella queue...");
+							p_Accept.clear();
+							p_Accepted = 0;
+							p_inQueue.add(pl);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+}
